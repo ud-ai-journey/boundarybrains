@@ -289,6 +289,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_correct_answer: {
+        Args: { _question_id: string; _selected_option: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin"
