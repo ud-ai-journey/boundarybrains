@@ -139,8 +139,35 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle>Access not granted</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Your account is authenticated, but it’s not marked as an admin in the backend roles table.
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Your account is authenticated, but it’s not marked as an admin in the backend roles table.
+              </p>
+
+              {user?.id ? (
+                <div className="rounded-md border bg-card/50 p-3">
+                  <div className="text-xs">Your user id</div>
+                  <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <code className="break-all text-xs text-foreground/90">{user.id}</code>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(user.id);
+                        toast({ title: "Copied", description: "User id copied to clipboard" });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              <p className="text-xs">
+                Only your core organizer team should be granted admin. Add a row to <code>user_roles</code> for each organizer
+                (<code>user_id</code> = their user id, <code>role</code> = <code>admin</code>).
+              </p>
             </CardContent>
           </Card>
         )}
