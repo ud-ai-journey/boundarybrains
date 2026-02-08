@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+type Mode = "signin" | "signup";
+
 const schema = z.object({
   email: z.string().trim().email().max(255),
   password: z.string().min(8).max(128),
@@ -19,6 +21,7 @@ export default function AuthAdmin() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,6 +39,22 @@ export default function AuthAdmin() {
 
     setLoading(true);
     try {
+      if (mode === "signup") {
+        const redirectUrl = `${window.location.origin}/admin`;
+        const { error } = await supabase.auth.signUp({
+          email: parsed.data.email,
+          password: parsed.data.password,
+          options: { emailRedirectTo: redirectUrl },
+        });
+        if (error) throw error;
+
+        toast({
+          title: "Check your email",
+          description: "Confirm the email address, then come back here and sign in.",
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email: parsed.data.email,
         password: parsed.data.password,
@@ -43,7 +62,11 @@ export default function AuthAdmin() {
       if (error) throw error;
       navigate("/admin/dashboard");
     } catch (err: any) {
-      toast({ title: "Admin sign-in failed", description: err?.message ?? "Try again", variant: "destructive" });
+      toast({
+        title: mode === "signup" ? "Admin sign-up failed" : "Admin sign-in failed",
+        description: err?.message ?? "Try again",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -56,14 +79,16 @@ export default function AuthAdmin() {
           <div className="space-y-4">
             <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">Admin portal</h1>
             <p className="text-pretty text-muted-foreground">
-              Organizers only. Use your admin email/password to unlock rounds and view live results.
+              Organizers only. Sign in to unlock rounds and view live results.
             </p>
           </div>
 
           <Card className="bg-card/70 backdrop-blur">
             <CardHeader>
-              <CardTitle>Sign in</CardTitle>
-              <CardDescription>Admin credentials only.</CardDescription>
+              <CardTitle>{mode === "signup" ? "Create admin account" : "Sign in"}</CardTitle>
+              <CardDescription>
+                {mode === "signup" ? "You’ll need to confirm the email before signing in." : "Admin credentials only."}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={onSubmit}>
@@ -76,10 +101,20 @@ export default function AuthAdmin() {
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
                 <Button className="w-full" type="submit" disabled={!canSubmit || loading}>
-                  {loading ? "Signing in…" : "Continue"}
+                  {loading ? (mode === "signup" ? "Creating…" : "Signing in…") : mode === "signup" ? "Create account" : "Continue"}
                 </Button>
-                <div className="text-xs text-muted-foreground">
-                  Employee? <Link className="underline underline-offset-4" to="/auth">Go to employee sign-in</Link>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <button
+                    type="button"
+                    className="underline underline-offset-4"
+                    onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
+                  >
+                    {mode === "signin" ? "Need an admin account?" : "Already have an account?"}
+                  </button>
+                  <Link className="underline underline-offset-4" to="/auth">
+                    Employee sign-in
+                  </Link>
                 </div>
               </form>
             </CardContent>
