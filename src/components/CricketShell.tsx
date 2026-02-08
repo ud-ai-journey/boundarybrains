@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import boundaryBrainsLogo from "@/assets/boundary-brains-logo.png";
 
 export function CricketShell({ children }: { children: ReactNode }) {
   return (
@@ -9,14 +10,29 @@ export function CricketShell({ children }: { children: ReactNode }) {
       </div>
 
       <header className="relative z-10 border-b bg-card/60 backdrop-blur">
-        <div className="container flex items-center justify-between py-4">
-          <div className="flex items-baseline gap-3">
-            <div className="text-sm font-semibold tracking-wide text-foreground">
-              SCS Auto Pay
+        <div className="container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src={boundaryBrainsLogo}
+              alt="Boundary Brains logo"
+              className="h-10 w-10 shrink-0 md:h-11 md:w-11"
+              loading="eager"
+              decoding="async"
+            />
+
+            <div className="leading-tight">
+              <div className="text-base font-semibold tracking-wide text-foreground md:text-lg">
+                BOUNDARY BRAINS
+              </div>
+              <div className="text-xs text-muted-foreground md:text-sm">
+                SCS-AUTOPAY SMART QUIZ 2026
+              </div>
             </div>
-            <div className="hidden text-sm text-muted-foreground md:block">Smart Quiz 2026</div>
           </div>
-          <div className="text-xs text-muted-foreground">Ninth Floor Cricket Tournament</div>
+
+          <div className="text-xs text-muted-foreground md:text-sm">
+            Ninth Floor Cricket Tournament
+          </div>
         </div>
       </header>
 
@@ -24,7 +40,10 @@ export function CricketShell({ children }: { children: ReactNode }) {
 
       <footer className="relative z-10 border-t bg-card/40 backdrop-blur">
         <div className="container py-6 text-xs text-muted-foreground">
-          Tournament-grade • Live rounds • Fair play reminders enabled
+          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+            <div>Boundary Brains • SCS-AUTOPAY Smart Quiz 2026</div>
+            <div>Tournament-grade • Live rounds • Fair play reminders enabled</div>
+          </div>
         </div>
       </footer>
     </div>
