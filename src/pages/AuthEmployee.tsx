@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 
 import { CricketShell } from "@/components/CricketShell";
+import boundaryBrainsLogo from "@/assets/boundary-brains-logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -105,8 +106,23 @@ export default function AuthEmployee() {
 
           <Card className="bg-card/70 backdrop-blur">
             <CardHeader>
-              <CardTitle>Employee sign-in</CardTitle>
-              <CardDescription>Use the passcode shared by organizers.</CardDescription>
+              <div className="flex items-center gap-3">
+                <img
+                  src={boundaryBrainsLogo}
+                  alt="Boundary Brains logo"
+                  className="h-10 w-10 shrink-0"
+                  loading="eager"
+                  decoding="async"
+                />
+                <div className="leading-tight">
+                  <div className="text-sm font-semibold tracking-wide text-foreground">BOUNDARY BRAINS</div>
+                  <div className="text-xs text-muted-foreground">SCS-AUTOPAY SMART QUIZ 2026</div>
+                </div>
+              </div>
+              <div className="pt-2">
+                <CardTitle>Employee sign-in</CardTitle>
+                <CardDescription>Use the passcode shared by organizers.</CardDescription>
+              </div>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={onSubmit}>
