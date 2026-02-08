@@ -20,7 +20,7 @@ export default function Leaderboard() {
 
   const load = async () => {
     const { data } = await supabase
-      .from("leaderboard")
+      .from("leaderboard_rows")
       .select("employee_id, full_name, user_id, total_correct, total_answered, total_duration_ms")
       .order("total_correct", { ascending: false })
       .order("total_duration_ms", { ascending: true })
@@ -34,8 +34,7 @@ export default function Leaderboard() {
 
     const channel = supabase
       .channel("leaderboard-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_round_attempts" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_answers" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "leaderboard_rows" }, load)
       .subscribe();
 
     return () => {

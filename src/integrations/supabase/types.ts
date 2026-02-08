@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      leaderboard_rows: {
+        Row: {
+          employee_id: string | null
+          full_name: string | null
+          last_completed_at: string | null
+          total_answered: number
+          total_correct: number
+          total_duration_ms: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          employee_id?: string | null
+          full_name?: string | null
+          last_completed_at?: string | null
+          total_answered?: number
+          total_correct?: number
+          total_duration_ms?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          employee_id?: string | null
+          full_name?: string | null
+          last_completed_at?: string | null
+          total_answered?: number
+          total_correct?: number
+          total_duration_ms?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -292,6 +325,10 @@ export type Database = {
       is_correct_answer: {
         Args: { _question_id: string; _selected_option: string }
         Returns: boolean
+      }
+      recompute_leaderboard_row: {
+        Args: { _user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
