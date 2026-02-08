@@ -5,6 +5,7 @@ import { z } from "zod";
 import { CricketShell } from "@/components/CricketShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,11 +15,16 @@ const answerSchema = z.object({
   option: z.enum(["A", "B", "C", "D"]),
 });
 
+const textAnswerSchema = z.object({
+  answer: z.string().trim().min(1).max(80),
+});
+
 type RoundRow = { id: string; round_no: number; title: string; status: "locked" | "unlocked" | "closed" };
 
 type QuestionRow = {
   id: string;
   sort_order: number;
+  question_type: "mcq" | "text";
   prompt: string;
   image_url: string | null;
   video_url: string | null;
@@ -41,6 +47,7 @@ export default function RoundPlay() {
   const [locked, setLocked] = useState(false);
   const [attemptState, setAttemptState] = useState<"idle" | "loading" | "active" | "completed">("idle");
   const [selected, setSelected] = useState<"A" | "B" | "C" | "D" | null>(null);
+  const [textAnswer, setTextAnswer] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const startedAtRef = useRef<number | null>(null);
@@ -94,7 +101,7 @@ export default function RoundPlay() {
 
     const { data: qs, error: qErr } = await supabase
       .from("quiz_questions")
-      .select("id, sort_order, prompt, image_url, video_url, option_a, option_b, option_c, option_d")
+      .select("id, sort_order, question_type, prompt, image_url, video_url, option_a, option_b, option_c, option_d")
       .eq("round_id", r.id)
       .order("sort_order", { ascending: true });
 
@@ -227,6 +234,7 @@ export default function RoundPlay() {
     if (!round?.id || !user || !current) return;
     if (attemptState !== "active") return;
     if (saving) return;
+    if (current.question_type !== "mcq") return;
 
     const parsed = answerSchema.safeParse({ option: opt });
     if (!parsed.success) return;
@@ -240,6 +248,7 @@ export default function RoundPlay() {
         round_id: round.id,
         question_id: current.id,
         selected_option: opt,
+        answer_text: null,
         answered_at: new Date().toISOString(),
       },
       { onConflict: "user_id,question_id" }
@@ -254,6 +263,52 @@ export default function RoundPlay() {
     window.setTimeout(() => {
       setSaving(false);
       setSelected(null);
+      setTextAnswer("");
+
+      if (index + 1 >= questions.length) {
+        finish();
+      } else {
+        setIndex((v) => v + 1);
+      }
+    }, 650);
+  };
+
+  const submitText = async () => {
+    if (!round?.id || !user || !current) return;
+    if (attemptState !== "active") return;
+    if (saving) return;
+    if (current.question_type !== "text") return;
+
+    const parsed = textAnswerSchema.safeParse({ answer: textAnswer });
+    if (!parsed.success) {
+      toast({ title: "Enter an answer", description: "Please type a name", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await supabase.from("quiz_answers").upsert(
+      {
+        user_id: user.id,
+        round_id: round.id,
+        question_id: current.id,
+        selected_option: null,
+        answer_text: parsed.data.answer,
+        answered_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,question_id" }
+    );
+
+    if (error) {
+      toast({ title: "Could not save answer", description: error.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
+
+    window.setTimeout(() => {
+      setSaving(false);
+      setSelected(null);
+      setTextAnswer("");
 
       if (index + 1 >= questions.length) {
         finish();
@@ -383,29 +438,44 @@ export default function RoundPlay() {
                   />
                 ) : null}
 
-                <div className="grid gap-2">
-                  {(
-                    [
-                      ["A", current.option_a],
-                      ["B", current.option_b],
-                      ["C", current.option_c],
-                      ["D", current.option_d],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <Button
-                      key={key}
-                      variant={selected === key ? "hero" : "outline"}
-                      className="justify-start"
+                {current.question_type === "text" ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={textAnswer}
+                      onChange={(e) => setTextAnswer(e.target.value)}
+                      placeholder="Type the name…"
                       disabled={saving}
-                      onClick={() => choose(key)}
-                    >
-                      <span className="mr-3 inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background text-xs font-semibold">
-                        {key}
-                      </span>
-                      <span className="text-left">{label}</span>
+                    />
+                    <Button type="button" onClick={submitText} disabled={saving}>
+                      {saving ? "Submitting…" : "Submit"}
                     </Button>
-                  ))}
-                </div>
+                    <div className="text-xs text-muted-foreground">Spelling is flexible (minor typos + partial names accepted).</div>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {(
+                      [
+                        ["A", current.option_a],
+                        ["B", current.option_b],
+                        ["C", current.option_c],
+                        ["D", current.option_d],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <Button
+                        key={key}
+                        variant={selected === key ? "hero" : "outline"}
+                        className="justify-start"
+                        disabled={saving}
+                        onClick={() => choose(key)}
+                      >
+                        <span className="mr-3 inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background text-xs font-semibold">
+                          {key}
+                        </span>
+                        <span className="text-left">{label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="text-xs text-muted-foreground">
                   Your selection is recorded immediately (no correctness is shown during play).

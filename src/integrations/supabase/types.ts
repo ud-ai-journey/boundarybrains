@@ -381,8 +381,6 @@ export type Database = {
         Args: { _user_id: string }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin"
