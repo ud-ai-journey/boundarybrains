@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { CricketShell } from "@/components/CricketShell";
@@ -15,30 +15,48 @@ type Row = {
   total_duration_ms: number;
 };
 
+const POLL_MS = 3000;
+
 export default function Leaderboard() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+
+  const loadingRef = useRef(false);
 
   const load = async () => {
-    const { data } = await supabase
-      .from("leaderboard_rows")
-      .select("employee_id, full_name, user_id, total_correct, total_answered, total_duration_ms")
-      .order("total_correct", { ascending: false })
-      .order("total_duration_ms", { ascending: true })
-      .limit(20);
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
-    setRows((data ?? []) as any);
+    try {
+      const { data, error } = await supabase
+        .from("leaderboard_rows")
+        .select("employee_id, full_name, user_id, total_correct, total_answered, total_duration_ms")
+        .order("total_correct", { ascending: false })
+        .order("total_duration_ms", { ascending: true })
+        .limit(20);
+
+      if (!error) {
+        setRows((data ?? []) as any);
+        setLastUpdatedAt(new Date());
+      }
+    } finally {
+      loadingRef.current = false;
+    }
   };
 
   useEffect(() => {
     load();
 
-    const channel = supabase
-      .channel("leaderboard-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "leaderboard_rows" }, load)
-      .subscribe();
+    const id = window.setInterval(load, POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,6 +71,10 @@ export default function Leaderboard() {
             <h1 className="text-3xl font-semibold tracking-tight">Live leaderboard</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Ranked by total correct answers, then fastest total completion time.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Updates every {Math.round(POLL_MS / 1000)}s
+              {lastUpdatedAt ? ` • Last updated ${lastUpdatedAt.toLocaleTimeString()}` : ""}
             </p>
           </div>
           <div className="text-sm">
