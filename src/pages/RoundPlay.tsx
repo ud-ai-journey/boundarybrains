@@ -35,6 +35,7 @@ export default function RoundPlay() {
 
   const [round, setRound] = useState<RoundRow | null>(null);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [questionsState, setQuestionsState] = useState<"idle" | "loading" | "ready" | "empty">("idle");
   const [index, setIndex] = useState(0);
   const [locked, setLocked] = useState(false);
   const [attemptState, setAttemptState] = useState<"idle" | "loading" | "active" | "completed">("idle");
@@ -61,6 +62,10 @@ export default function RoundPlay() {
       return;
     }
 
+    setQuestions([]);
+    setIndex(0);
+    setQuestionsState("loading");
+
     const { data: r, error: rErr } = await supabase
       .from("quiz_rounds")
       .select("id, round_no, title, status")
@@ -68,6 +73,7 @@ export default function RoundPlay() {
       .maybeSingle();
     if (rErr) {
       toast({ title: "Unable to load round", description: rErr.message, variant: "destructive" });
+      setQuestionsState("idle");
       return;
     }
 
@@ -81,6 +87,7 @@ export default function RoundPlay() {
 
     if (r.status !== "unlocked") {
       setLocked(true);
+      setQuestionsState("idle");
       return;
     }
 
@@ -92,10 +99,13 @@ export default function RoundPlay() {
 
     if (qErr) {
       toast({ title: "Unable to load questions", description: qErr.message, variant: "destructive" });
+      setQuestionsState("idle");
       return;
     }
 
-    setQuestions((qs ?? []) as any);
+    const list = (qs ?? []) as any[];
+    setQuestions(list as any);
+    setQuestionsState(list.length === 0 ? "empty" : "ready");
   };
 
   useEffect(() => {
@@ -272,7 +282,7 @@ export default function RoundPlay() {
     );
   }
 
-  if (attemptState === "loading" || attemptState === "idle") {
+  if (attemptState === "loading" || attemptState === "idle" || questionsState === "loading") {
     return (
       <CricketShell>
         <section className="container py-10">
@@ -280,8 +290,27 @@ export default function RoundPlay() {
             <CardHeader>
               <CardTitle>Preparing your round…</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Please wait a moment.
+            <CardContent className="text-sm text-muted-foreground">Please wait a moment.</CardContent>
+          </Card>
+        </section>
+      </CricketShell>
+    );
+  }
+
+  if (questionsState === "empty") {
+    return (
+      <CricketShell>
+        <section className="container py-10">
+          <Card className="mx-auto max-w-2xl bg-card/70 backdrop-blur">
+            <CardHeader>
+              <CardTitle>No questions for this round</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              This round is unlocked, but no questions have been added yet. Please ask an organizer to seed questions for Round {round?.round_no}.
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => navigate("/")}>Back to tournament</Button>
+                <Button type="button" onClick={() => navigate("/leaderboard")}>View leaderboard</Button>
+              </div>
             </CardContent>
           </Card>
         </section>
