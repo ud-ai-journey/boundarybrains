@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
 import { CricketShell } from "@/components/CricketShell";
@@ -37,6 +37,7 @@ export default function RoundPlay() {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [index, setIndex] = useState(0);
   const [locked, setLocked] = useState(false);
+  const [attemptState, setAttemptState] = useState<"idle" | "loading" | "active" | "completed">("idle");
   const [selected, setSelected] = useState<"A" | "B" | "C" | "D" | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -106,20 +107,60 @@ export default function RoundPlay() {
     if (!round?.id || !user) return;
     if (locked) return;
 
+    let cancelled = false;
+
     const ensureAttempt = async () => {
-      const { error } = await supabase.from("quiz_round_attempts").insert({
-        user_id: user.id,
-        round_id: round.id,
-        started_at: new Date().toISOString(),
-      });
-      // ignore unique violations
-      if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-        toast({ title: "Unable to start attempt", description: error.message, variant: "destructive" });
+      setAttemptState("loading");
+
+      // Fetch fresh state to prevent re-attempting a completed round.
+      const { data: existing, error: existingErr } = await supabase
+        .from("quiz_round_attempts")
+        .select("started_at, completed_at")
+        .eq("user_id", user.id)
+        .eq("round_id", round.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (existingErr) {
+        toast({ title: "Unable to start attempt", description: existingErr.message, variant: "destructive" });
+        setAttemptState("idle");
+        return;
       }
+
+      if (existing?.completed_at) {
+        setAttemptState("completed");
+        return;
+      }
+
+      if (!existing) {
+        const startedAtIso = new Date().toISOString();
+        const { error: insertErr } = await supabase.from("quiz_round_attempts").insert({
+          user_id: user.id,
+          round_id: round.id,
+          started_at: startedAtIso,
+        });
+
+        if (!cancelled && insertErr) {
+          toast({ title: "Unable to start attempt", description: insertErr.message, variant: "destructive" });
+          setAttemptState("idle");
+          return;
+        }
+
+        startedAtRef.current = Date.parse(startedAtIso);
+        setAttemptState("active");
+        return;
+      }
+
+      startedAtRef.current = existing.started_at ? Date.parse(existing.started_at) : Date.now();
+      setAttemptState("active");
     };
 
-    startedAtRef.current = Date.now();
     ensureAttempt();
+
+    return () => {
+      cancelled = true;
+    };
   }, [round?.id, user, locked, toast]);
 
   // Light anti-cheat: warn on tab switch.
@@ -157,6 +198,7 @@ export default function RoundPlay() {
 
   const finish = async () => {
     if (!round?.id || !user) return;
+    if (attemptState !== "active") return;
 
     const durationMs = startedAtRef.current ? Date.now() - startedAtRef.current : null;
 
@@ -166,11 +208,13 @@ export default function RoundPlay() {
       .eq("user_id", user.id)
       .eq("round_id", round.id);
 
+    setAttemptState("completed");
     navigate("/leaderboard");
   };
 
   const choose = async (opt: "A" | "B" | "C" | "D") => {
     if (!round?.id || !user || !current) return;
+    if (attemptState !== "active") return;
     if (saving) return;
 
     const parsed = answerSchema.safeParse({ option: opt });
@@ -219,9 +263,45 @@ export default function RoundPlay() {
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               This round isn’t unlocked yet (or it has been closed). Please return to the waiting screen.
               <div>
-                <Button asChild variant="outline">
-                  <Link to="/">Back</Link>
-                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate("/")}>Back</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </CricketShell>
+    );
+  }
+
+  if (attemptState === "loading" || attemptState === "idle") {
+    return (
+      <CricketShell>
+        <section className="container py-10">
+          <Card className="mx-auto max-w-2xl bg-card/70 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Preparing your round…</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Please wait a moment.
+            </CardContent>
+          </Card>
+        </section>
+      </CricketShell>
+    );
+  }
+
+  if (attemptState === "completed") {
+    return (
+      <CricketShell>
+        <section className="container py-10">
+          <Card className="mx-auto max-w-2xl bg-card/70 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Round already completed</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              You’ve already completed this round. For fairness, re-attempts are disabled.
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => navigate("/")}>Back to tournament</Button>
+                <Button type="button" onClick={() => navigate("/leaderboard")}>View leaderboard</Button>
               </div>
             </CardContent>
           </Card>
@@ -239,8 +319,8 @@ export default function RoundPlay() {
               <div className="text-sm text-muted-foreground">Round {round?.round_no}</div>
               <h1 className="text-2xl font-semibold tracking-tight">{round?.title}</h1>
             </div>
-            <Button variant="ghost" asChild>
-              <Link to="/">Exit</Link>
+            <Button variant="ghost" type="button" onClick={() => navigate("/")}> 
+              Exit
             </Button>
           </div>
 
