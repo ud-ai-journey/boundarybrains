@@ -76,30 +76,33 @@ export type Database = {
       }
       quiz_answers: {
         Row: {
+          answer_text: string | null
           answered_at: string
           created_at: string
           id: string
           question_id: string
           round_id: string
-          selected_option: string
+          selected_option: string | null
           user_id: string
         }
         Insert: {
+          answer_text?: string | null
           answered_at?: string
           created_at?: string
           id?: string
           question_id: string
           round_id: string
-          selected_option: string
+          selected_option?: string | null
           user_id: string
         }
         Update: {
+          answer_text?: string | null
           answered_at?: string
           created_at?: string
           id?: string
           question_id?: string
           round_id?: string
-          selected_option?: string
+          selected_option?: string | null
           user_id?: string
         }
         Relationships: [
@@ -148,6 +151,35 @@ export type Database = {
           },
         ]
       }
+      quiz_question_text_variants: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          variant: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          variant: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          variant?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_question_text_variants_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_questions: {
         Row: {
           created_at: string
@@ -158,6 +190,7 @@ export type Database = {
           option_c: string
           option_d: string
           prompt: string
+          question_type: Database["public"]["Enums"]["question_type"]
           round_id: string
           sort_order: number
           updated_at: string
@@ -172,6 +205,7 @@ export type Database = {
           option_c: string
           option_d: string
           prompt: string
+          question_type?: Database["public"]["Enums"]["question_type"]
           round_id: string
           sort_order?: number
           updated_at?: string
@@ -186,6 +220,7 @@ export type Database = {
           option_c?: string
           option_d?: string
           prompt?: string
+          question_type?: Database["public"]["Enums"]["question_type"]
           round_id?: string
           sort_order?: number
           updated_at?: string
@@ -325,17 +360,33 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_answer_correct: {
+        Args: {
+          _answer_text: string
+          _question_id: string
+          _selected_option: string
+        }
+        Returns: boolean
+      }
       is_correct_answer: {
         Args: { _question_id: string; _selected_option: string }
         Returns: boolean
       }
+      is_correct_text_answer: {
+        Args: { _answer_text: string; _question_id: string }
+        Returns: boolean
+      }
+      normalize_answer: { Args: { _s: string }; Returns: string }
       recompute_leaderboard_row: {
         Args: { _user_id: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin"
+      question_type: "mcq" | "text"
       round_status: "locked" | "unlocked" | "closed"
     }
     CompositeTypes: {
@@ -465,6 +516,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin"],
+      question_type: ["mcq", "text"],
       round_status: ["locked", "unlocked", "closed"],
     },
   },
