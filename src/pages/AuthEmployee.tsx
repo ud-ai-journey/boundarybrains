@@ -68,6 +68,16 @@ export default function AuthEmployee() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
 
+      // Store/update employee profile (owner-only via backend rules)
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+
+      const { error: profileErr } = await supabase.from("profiles").upsert(
+        { user_id: userData.user.id, employee_id: normalizedId, full_name: normalizedName },
+        { onConflict: "employee_id" }
+      );
+      if (profileErr) throw profileErr;
+
       navigate("/");
       toast({ title: "Welcome", description: `Good luck, ${normalizedName}!` });
     } catch (err: any) {

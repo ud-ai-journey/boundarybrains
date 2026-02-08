@@ -2,10 +2,16 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 }
 
@@ -22,6 +28,11 @@ function employeeEmailFromId(employeeId: string) {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") return json(405, { ok: false, message: "Method not allowed" });
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -61,29 +72,23 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-  // Ensure auth user exists and is confirmed.
-  const { data: existing } = await admin.auth.admin.getUserByEmail(email);
-  let userId = existing?.user?.id ?? null;
+  // Create user if missing (idempotent-ish): if already exists, proceed.
+  const { error: createErr } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { employee_id: employeeId, full_name: fullName },
+  });
 
-  if (!userId) {
-    const { data, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { employee_id: employeeId, full_name: fullName },
-    });
-    if (error) return json(400, { ok: false, message: error.message });
-    userId = data.user?.id ?? null;
+  if (createErr) {
+    const msg = (createErr as any)?.message ?? String(createErr);
+    // If user already exists, that's OK.
+    const okAlreadyExists = msg.toLowerCase().includes("already") || msg.toLowerCase().includes("exists");
+    if (!okAlreadyExists) {
+      console.error("createUser failed:", createErr);
+      return json(400, { ok: false, message: msg });
+    }
   }
-
-  if (!userId) return json(500, { ok: false, message: "Unable to create user" });
-
-  // Enforce unique employee_id -> user_id mapping via DB constraint; upsert profile.
-  const { error: upsertErr } = await admin.from("profiles").upsert(
-    { user_id: userId, employee_id: employeeId, full_name: fullName },
-    { onConflict: "employee_id" },
-  );
-  if (upsertErr) return json(409, { ok: false, message: upsertErr.message });
 
   return json(200, { ok: true });
 });
