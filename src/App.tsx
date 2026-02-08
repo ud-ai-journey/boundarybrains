@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import AuthEmployee from "./pages/AuthEmployee";
 import AuthAdmin from "./pages/AuthAdmin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminQuestions from "./pages/AdminQuestions";
 import RoundPlay from "./pages/RoundPlay";
 import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,8 @@ const App = () => (
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AuthAdmin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/questions" element={<AdminQuestions />} />
+          <Route path="/admin/questions/:roundNo" element={<AdminQuestions />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

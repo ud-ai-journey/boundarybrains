@@ -21,6 +21,7 @@ type QuestionRow = {
   sort_order: number;
   prompt: string;
   image_url: string | null;
+  video_url: string | null;
   option_a: string;
   option_b: string;
   option_c: string;
@@ -93,7 +94,7 @@ export default function RoundPlay() {
 
     const { data: qs, error: qErr } = await supabase
       .from("quiz_questions")
-      .select("id, sort_order, prompt, image_url, option_a, option_b, option_c, option_d")
+      .select("id, sort_order, prompt, image_url, video_url, option_a, option_b, option_c, option_d")
       .eq("round_id", r.id)
       .order("sort_order", { ascending: true });
 
@@ -364,6 +365,15 @@ export default function RoundPlay() {
                 <CardTitle className="text-balance">{current.prompt}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {current.video_url ? (
+                  <video
+                    src={current.video_url}
+                    controls
+                    preload="metadata"
+                    className="h-auto w-full rounded-md border bg-background"
+                  />
+                ) : null}
+
                 {current.image_url ? (
                   <img
                     src={current.image_url}

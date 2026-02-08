@@ -120,6 +120,9 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" asChild>
+              <Link to="/admin/questions">Manage questions</Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link to="/leaderboard">Open leaderboard</Link>
             </Button>
             <Button
