@@ -10,6 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "@/hooks/useSession";
@@ -112,6 +123,8 @@ export default function AdminQuestions() {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [busy, setBusy] = useState(false);
 
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+
   const [questionType, setQuestionType] = useState<QuestionType>("mcq");
   const [prompt, setPrompt] = useState("");
 
@@ -209,6 +222,7 @@ export default function AdminQuestions() {
   }, [selectedRoundId, isAdmin]);
 
   const resetForm = () => {
+    setEditingQuestionId(null);
     setQuestionType("mcq");
     setPrompt("");
     setA("");
@@ -247,7 +261,59 @@ export default function AdminQuestions() {
     };
   };
 
-  const onCreate = async () => {
+  const startEdit = async (q: QuestionRow) => {
+    setBusy(true);
+    try {
+      setEditingQuestionId(q.id);
+      setQuestionType(q.question_type);
+      setPrompt(q.prompt);
+      setImageUrl(q.image_url ?? "");
+      setVideoUrl(q.video_url ?? "");
+      setImageFile(null);
+      setVideoFile(null);
+
+      if (q.question_type === "mcq") {
+        setA(q.option_a);
+        setB(q.option_b);
+        setC(q.option_c);
+        setD(q.option_d);
+
+        const { data, error } = await supabase
+          .from("quiz_question_answers")
+          .select("correct_option")
+          .eq("question_id", q.id)
+          .maybeSingle();
+        if (error) throw error;
+
+        const raw = (data?.correct_option ?? "A") as any;
+        const normalized = String(raw).toUpperCase();
+        setCorrect(["A", "B", "C", "D"].includes(normalized) ? (normalized as any) : "A");
+        setVariantsRaw("");
+      } else {
+        setA("");
+        setB("");
+        setC("");
+        setD("");
+        setCorrect("A");
+
+        const { data, error } = await supabase
+          .from("quiz_question_text_variants")
+          .select("variant")
+          .eq("question_id", q.id)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+
+        setVariantsRaw((data ?? []).map((r) => r.variant).join("\n"));
+      }
+    } catch (err: any) {
+      toast({ title: "Failed to load question", description: err?.message ?? "Try again", variant: "destructive" });
+      setEditingQuestionId(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSave = async () => {
     if (!selectedRoundId) {
       toast({ title: "Choose a round first" });
       return;
@@ -259,60 +325,140 @@ export default function AdminQuestions() {
       return;
     }
 
+    const isEditing = Boolean(editingQuestionId);
+
+    // When editing, we keep the original type to avoid migrating answer data in-place.
+    if (isEditing) {
+      const existing = questions.find((q) => q.id === editingQuestionId);
+      if (existing && existing.question_type !== parsed.data.question_type) {
+        toast({
+          title: "Cannot change question type",
+          description: "For now, please create a new question instead of changing type.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setBusy(true);
     try {
-      const nextSort = (questions.at(-1)?.sort_order ?? 0) + 1;
-
       let finalImageUrl = parsed.data.image_url ?? null;
       let finalVideoUrl = parsed.data.video_url ?? null;
 
       if (imageFile) finalImageUrl = await uploadToQuizMedia(imageFile, `round-${selectedRoundId}`);
       if (videoFile) finalVideoUrl = await uploadToQuizMedia(videoFile, `round-${selectedRoundId}`);
 
-      // Insert question
-      const { data: inserted, error: insErr } = await supabase
-        .from("quiz_questions")
-        .insert({
-          round_id: selectedRoundId,
-          sort_order: nextSort,
-          question_type: parsed.data.question_type,
-          prompt: parsed.data.prompt,
-          image_url: finalImageUrl,
-          video_url: finalVideoUrl,
-          option_a: parsed.data.question_type === "mcq" ? parsed.data.option_a : "",
-          option_b: parsed.data.question_type === "mcq" ? parsed.data.option_b : "",
-          option_c: parsed.data.question_type === "mcq" ? parsed.data.option_c : "",
-          option_d: parsed.data.question_type === "mcq" ? parsed.data.option_d : "",
-        })
-        .select("id")
-        .single();
+      if (!isEditing) {
+        const nextSort = (questions.at(-1)?.sort_order ?? 0) + 1;
 
-      if (insErr) throw insErr;
+        // Insert question
+        const { data: inserted, error: insErr } = await supabase
+          .from("quiz_questions")
+          .insert({
+            round_id: selectedRoundId,
+            sort_order: nextSort,
+            question_type: parsed.data.question_type,
+            prompt: parsed.data.prompt,
+            image_url: finalImageUrl,
+            video_url: finalVideoUrl,
+            option_a: parsed.data.question_type === "mcq" ? parsed.data.option_a : "",
+            option_b: parsed.data.question_type === "mcq" ? parsed.data.option_b : "",
+            option_c: parsed.data.question_type === "mcq" ? parsed.data.option_c : "",
+            option_d: parsed.data.question_type === "mcq" ? parsed.data.option_d : "",
+          })
+          .select("id")
+          .single();
 
-      const questionId = inserted?.id;
-      if (!questionId) throw new Error("Question was created but ID was not returned");
+        if (insErr) throw insErr;
 
-      if (parsed.data.question_type === "mcq") {
-        const { error: ansErr } = await supabase
-          .from("quiz_question_answers")
-          .upsert({ question_id: questionId, correct_option: parsed.data.correct_option }, { onConflict: "question_id" });
-        if (ansErr) throw ansErr;
-      } else {
-        const variants = parseVariants(parsed.data.variants_raw);
-        if (variants.length === 0) {
-          throw new Error("Please add at least one accepted answer (variant)");
+        const questionId = inserted?.id;
+        if (!questionId) throw new Error("Question was created but ID was not returned");
+
+        if (parsed.data.question_type === "mcq") {
+          const { error: ansErr } = await supabase
+            .from("quiz_question_answers")
+            .upsert({ question_id: questionId, correct_option: parsed.data.correct_option }, { onConflict: "question_id" });
+          if (ansErr) throw ansErr;
+        } else {
+          const variants = parseVariants(parsed.data.variants_raw);
+          if (variants.length === 0) {
+            throw new Error("Please add at least one accepted answer (variant)");
+          }
+
+          const rows = variants.map((v) => ({ question_id: questionId, variant: v }));
+          const { error: vErr } = await supabase.from("quiz_question_text_variants").insert(rows);
+          if (vErr) throw vErr;
         }
 
-        const rows = variants.map((v) => ({ question_id: questionId, variant: v }));
-        const { error: vErr } = await supabase.from("quiz_question_text_variants").insert(rows);
-        if (vErr) throw vErr;
+        toast({ title: "Question added" });
+        resetForm();
+      } else {
+        const questionId = editingQuestionId as string;
+
+        // Update question
+        const { error: qErr } = await supabase
+          .from("quiz_questions")
+          .update({
+            prompt: parsed.data.prompt,
+            image_url: finalImageUrl,
+            video_url: finalVideoUrl,
+            option_a: parsed.data.question_type === "mcq" ? parsed.data.option_a : "",
+            option_b: parsed.data.question_type === "mcq" ? parsed.data.option_b : "",
+            option_c: parsed.data.question_type === "mcq" ? parsed.data.option_c : "",
+            option_d: parsed.data.question_type === "mcq" ? parsed.data.option_d : "",
+          })
+          .eq("id", questionId);
+        if (qErr) throw qErr;
+
+        if (parsed.data.question_type === "mcq") {
+          const { error: ansErr } = await supabase
+            .from("quiz_question_answers")
+            .upsert({ question_id: questionId, correct_option: parsed.data.correct_option }, { onConflict: "question_id" });
+          if (ansErr) throw ansErr;
+        } else {
+          const variants = parseVariants(parsed.data.variants_raw);
+          if (variants.length === 0) {
+            throw new Error("Please add at least one accepted answer (variant)");
+          }
+
+          const { error: delErr } = await supabase.from("quiz_question_text_variants").delete().eq("question_id", questionId);
+          if (delErr) throw delErr;
+
+          const rows = variants.map((v) => ({ question_id: questionId, variant: v }));
+          const { error: vErr } = await supabase.from("quiz_question_text_variants").insert(rows);
+          if (vErr) throw vErr;
+        }
+
+        toast({ title: "Question updated" });
+        resetForm();
       }
 
-      toast({ title: "Question added" });
-      resetForm();
       await loadQuestions(selectedRoundId);
     } catch (err: any) {
-      toast({ title: "Failed to add question", description: err?.message ?? "Try again", variant: "destructive" });
+      toast({ title: isEditing ? "Failed to update question" : "Failed to add question", description: err?.message ?? "Try again", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteQuestion = async (q: QuestionRow) => {
+    setBusy(true);
+    try {
+      if (q.question_type === "mcq") {
+        await supabase.from("quiz_question_answers").delete().eq("question_id", q.id);
+      } else {
+        await supabase.from("quiz_question_text_variants").delete().eq("question_id", q.id);
+      }
+
+      const { error } = await supabase.from("quiz_questions").delete().eq("id", q.id);
+      if (error) throw error;
+
+      if (editingQuestionId === q.id) resetForm();
+
+      toast({ title: "Question deleted" });
+      await loadQuestions(selectedRoundId);
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err?.message ?? "Try again", variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -384,21 +530,54 @@ export default function AdminQuestions() {
                         No questions yet for this round.
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {questions.map((q) => (
-                          <div key={q.id} className="rounded-md border bg-background/40 p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="text-xs text-muted-foreground">#{q.sort_order}</div>
-                              <div className="text-xs text-muted-foreground capitalize">{q.question_type}</div>
+                        <div className="space-y-2">
+                          {questions.map((q) => (
+                            <div key={q.id} className="rounded-md border bg-background/40 p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-xs text-muted-foreground">#{q.sort_order}</div>
+                                    <div className="text-xs text-muted-foreground capitalize">{q.question_type}</div>
+                                    {editingQuestionId === q.id ? (
+                                      <span className="rounded border px-2 py-0.5 text-xs">editing</span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium break-words">{q.prompt}</div>
+                                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    {q.image_url ? <span className="rounded border px-2 py-1">image</span> : null}
+                                    {q.video_url ? <span className="rounded border px-2 py-1">video</span> : null}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 flex flex-col gap-2">
+                                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => startEdit(q)}>
+                                    Edit
+                                  </Button>
+
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="sm" variant="destructive" disabled={busy}>
+                                        Delete
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete this question?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This removes the question and its answer key/variants. Existing player answers remain, but will no longer match a question.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => deleteQuestion(q)}>Delete</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
                             </div>
-                            <div className="mt-1 text-sm font-medium">{q.prompt}</div>
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              {q.image_url ? <span className="rounded border px-2 py-1">image</span> : null}
-                              {q.video_url ? <span className="rounded border px-2 py-1">video</span> : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
                     )
                   ) : (
                     <div className="text-sm text-muted-foreground">Select a round to view questions.</div>
@@ -415,7 +594,11 @@ export default function AdminQuestions() {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label>Question type</Label>
-                  <Select value={questionType} onValueChange={(v) => setQuestionType(v as QuestionType)}>
+                  <Select
+                    value={questionType}
+                    onValueChange={(v) => setQuestionType(v as QuestionType)}
+                    disabled={Boolean(editingQuestionId)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -424,6 +607,9 @@ export default function AdminQuestions() {
                       <SelectItem value="text">Text answer (names)</SelectItem>
                     </SelectContent>
                   </Select>
+                  {editingQuestionId ? (
+                    <div className="text-xs text-muted-foreground">Question type is locked while editing.</div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
@@ -511,11 +697,11 @@ export default function AdminQuestions() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="button" onClick={onCreate} disabled={busy || !selectedRoundId}>
-                    {busy ? "Saving…" : "Add question"}
+                  <Button type="button" onClick={onSave} disabled={busy || !selectedRoundId}>
+                    {busy ? "Saving…" : editingQuestionId ? "Save changes" : "Add question"}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm} disabled={busy}>
-                    Reset
+                    {editingQuestionId ? "Cancel" : "Reset"}
                   </Button>
                 </div>
 
