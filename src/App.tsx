@@ -9,6 +9,7 @@ import AuthAdmin from "./pages/AuthAdmin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRounds from "./pages/AdminRounds";
 import AdminQuestions from "./pages/AdminQuestions";
+import AdminSecuritySmoke from "./pages/AdminSecuritySmoke";
 import RoundPlay from "./pages/RoundPlay";
 import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/admin/rounds" element={<AdminRounds />} />
           <Route path="/admin/questions" element={<AdminQuestions />} />
           <Route path="/admin/questions/:roundNo" element={<AdminQuestions />} />
+          <Route path="/admin/security-smoke" element={<AdminSecuritySmoke />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
