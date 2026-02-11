@@ -316,6 +316,42 @@ export type Database = {
         }
         Relationships: []
       }
+      round_leaderboard_rows: {
+        Row: {
+          completed_at: string | null
+          duration_ms: number | null
+          employee_id: string | null
+          full_name: string | null
+          round_id: string
+          total_answered: number
+          total_correct: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          employee_id?: string | null
+          full_name?: string | null
+          round_id: string
+          total_answered?: number
+          total_correct?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          employee_id?: string | null
+          full_name?: string | null
+          round_id?: string
+          total_answered?: number
+          total_correct?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -379,6 +415,10 @@ export type Database = {
       normalize_answer: { Args: { _s: string }; Returns: string }
       recompute_leaderboard_row: {
         Args: { _user_id: string }
+        Returns: undefined
+      }
+      recompute_round_leaderboard_row: {
+        Args: { _round_id: string; _user_id: string }
         Returns: undefined
       }
     }
