@@ -22,6 +22,8 @@ export default {
         brand: {
           accent: "hsl(var(--brand-accent))",
           glow: "hsl(var(--brand-glow))",
+          sun: "hsl(var(--brand-sun))",
+          ink: "hsl(var(--brand-ink))",
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -66,6 +68,10 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        glow: "0 14px 40px -18px hsl(var(--shadow-glow) / 0.55)",
+        accent: "0 14px 40px -18px hsl(var(--shadow-accent) / 0.45)",
       },
       keyframes: {
         "accordion-down": {
