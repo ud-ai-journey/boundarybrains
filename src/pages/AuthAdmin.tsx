@@ -78,13 +78,17 @@ export default function AuthAdmin() {
       <section className="container py-10 md:py-14">
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[1.1fr_.9fr]">
           <div className="space-y-4">
-            <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">Admin portal</h1>
+            <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
+              <span className="bg-gradient-to-r from-brand-sun via-brand-accent to-brand-glow bg-clip-text text-transparent">
+                Admin portal
+              </span>
+            </h1>
             <p className="text-pretty text-muted-foreground">
               Organizers only. Sign in to unlock rounds and view live results.
             </p>
           </div>
 
-          <Card className="bg-card/70 backdrop-blur">
+          <Card className="bg-card/70 backdrop-blur shadow-glow border-brand-glow/30">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <img

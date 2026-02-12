@@ -94,17 +94,24 @@ export default function AuthEmployee() {
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[1.1fr_.9fr]">
           <div className="space-y-4">
             <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Enter the arena: Smart Quiz 2026
+              <span className="bg-gradient-to-r from-brand-sun via-brand-accent to-brand-glow bg-clip-text text-transparent">
+                Enter the arena
+              </span>
+              : Smart Quiz 2026
             </h1>
             <p className="text-pretty text-muted-foreground">
               Sign in with your Employee ID and the event passcode. You’ll stay logged in for the day.
             </p>
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-card/60 px-3 py-1 text-xs text-muted-foreground shadow-accent">
+              <span aria-hidden>🏏</span>
+              Live tournament rules apply • Stay focused
+            </div>
             <div className="rounded-lg border bg-card/60 p-4 text-sm text-muted-foreground">
               Fair play reminder: switching tabs will trigger a warning during a live round.
             </div>
           </div>
 
-          <Card className="bg-card/70 backdrop-blur">
+          <Card className="bg-card/70 backdrop-blur shadow-glow border-brand-glow/30">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <img
