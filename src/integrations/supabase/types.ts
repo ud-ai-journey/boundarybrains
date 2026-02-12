@@ -421,6 +421,13 @@ export type Database = {
         Args: { _round_id: string; _user_id: string }
         Returns: undefined
       }
+      round_participant_counts_submitted: {
+        Args: never
+        Returns: {
+          participants_submitted: number
+          round_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin"
