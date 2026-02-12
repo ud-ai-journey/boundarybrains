@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { CricketShell } from "@/components/CricketShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -96,11 +97,18 @@ export default function Leaderboard() {
       <section className="container py-10">
         <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Live leaderboard</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              <span className="bg-gradient-to-r from-brand-sun via-brand-accent to-brand-glow bg-clip-text text-transparent">
+                Live leaderboard
+              </span>
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {round ? (
                 <>
-                  Round {round.round_no}: {round.title}
+                  <Badge variant="secondary" className="mr-2 bg-brand-accent/15 text-secondary-foreground">
+                    Round {round.round_no}
+                  </Badge>
+                  <span className="font-medium text-foreground">{round.title}</span>
                 </>
               ) : (
                 <>No round is currently unlocked.</>
@@ -121,32 +129,57 @@ export default function Leaderboard() {
         {round ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
-              {podium.map((p, idx) => (
-                <Card key={p.user_id} className="bg-card/70 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle>
-                      #{idx + 1} • {p.full_name ?? "—"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    <div>Employee ID: {p.employee_id ?? "—"}</div>
-                    <div>
-                      Score: <span className="font-medium text-foreground">{p.total_correct}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {podium.map((p, idx) => {
+                const rank = idx + 1;
+                const podiumClass =
+                  rank === 1
+                    ? "shadow-glow border-brand-sun/40"
+                    : rank === 2
+                      ? "shadow-accent border-brand-glow/30"
+                      : "shadow-accent border-brand-accent/30";
+
+                const badgeClass =
+                  rank === 1
+                    ? "bg-gradient-to-r from-brand-sun to-brand-glow text-primary-foreground"
+                    : rank === 2
+                      ? "bg-brand-glow/20 text-secondary-foreground"
+                      : "bg-brand-accent/20 text-secondary-foreground";
+
+                return (
+                  <Card key={p.user_id} className={`bg-card/70 backdrop-blur ${podiumClass}`}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-xl">
+                          {p.full_name ?? "—"}
+                        </CardTitle>
+                        <Badge className={badgeClass}>#{rank}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground">
+                      <div>Employee ID: {p.employee_id ?? "—"}</div>
+                      <div>
+                        Score: <span className="font-medium text-foreground">{p.total_correct}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
-            <Card className="mt-6 bg-card/70 backdrop-blur">
+            <Card className="mt-6 bg-card/70 backdrop-blur shadow-glow border-brand-glow/20">
               <CardHeader>
-                <CardTitle>Top 20</CardTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>Top 20</CardTitle>
+                  <Badge variant="outline" className="border-brand-sun/40 bg-brand-sun/10 text-secondary-foreground">
+                    Scores this round
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[70px]">Rank</TableHead>
+                      <TableHead className="w-[90px]">Rank</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Employee ID</TableHead>
                       <TableHead className="text-right">Correct</TableHead>
@@ -154,17 +187,40 @@ export default function Leaderboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r, i) => (
-                      <TableRow key={r.user_id}>
-                        <TableCell className="font-medium">{i + 1}</TableCell>
-                        <TableCell>{r.full_name ?? "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">{r.employee_id ?? "—"}</TableCell>
-                        <TableCell className="text-right font-medium">{r.total_correct}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {r.duration_ms == null ? "—" : `${Math.round(r.duration_ms / 1000)}s`}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {rows.map((r, i) => {
+                      const rank = i + 1;
+                      const rankBadgeClass =
+                        rank === 1
+                          ? "bg-gradient-to-r from-brand-sun to-brand-glow text-primary-foreground"
+                          : rank === 2
+                            ? "bg-brand-glow/20 text-secondary-foreground"
+                            : rank === 3
+                              ? "bg-brand-accent/20 text-secondary-foreground"
+                              : "bg-secondary text-secondary-foreground";
+
+                      const rowClass =
+                        rank === 1
+                          ? "bg-brand-sun/10"
+                          : rank === 2
+                            ? "bg-brand-glow/10"
+                            : rank === 3
+                              ? "bg-brand-accent/10"
+                              : "";
+
+                      return (
+                        <TableRow key={r.user_id} className={rowClass}>
+                          <TableCell className="font-medium">
+                            <Badge className={rankBadgeClass}>#{rank}</Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">{r.full_name ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{r.employee_id ?? "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{r.total_correct}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {r.duration_ms == null ? "—" : `${Math.round(r.duration_ms / 1000)}s`}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
