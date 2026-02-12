@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CricketShell } from "@/components/CricketShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
@@ -94,10 +95,17 @@ export default function Index() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="md:col-span-2 bg-card/70 backdrop-blur">
+            <Card className="md:col-span-2 bg-card/70 backdrop-blur shadow-glow border-brand-glow/30">
               <CardHeader>
-                <CardTitle>Live rounds</CardTitle>
-                <CardDescription>Join only when a round is unlocked.</CardDescription>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Live rounds</CardTitle>
+                    <CardDescription>Join only when a round is unlocked.</CardDescription>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-brand-sun via-brand-accent to-brand-glow text-primary-foreground">
+                    Cricket Quiz
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {unlocked.length === 0 ? (
@@ -107,11 +115,21 @@ export default function Index() {
                 ) : (
                   <div className="grid gap-3">
                     {unlocked.map((r) => (
-                      <div key={r.id} className="flex flex-col gap-2 rounded-lg border bg-background/40 p-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="text-xs text-muted-foreground">Round {r.round_no}</div>
+                      <div
+                        key={r.id}
+                        className="group flex flex-col gap-2 rounded-lg border bg-background/40 p-4 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-glow md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="bg-brand-accent/15 text-secondary-foreground">
+                              Round {r.round_no}
+                            </Badge>
+                            <Badge className="bg-brand-glow/15 text-secondary-foreground">Unlocked</Badge>
+                          </div>
                           <div className="font-medium">{r.title}</div>
-                          {r.topic_preview ? <div className="text-sm text-muted-foreground">{r.topic_preview}</div> : null}
+                          {r.topic_preview ? (
+                            <div className="text-sm text-muted-foreground">{r.topic_preview}</div>
+                          ) : null}
                         </div>
                         <Button variant="hero" onClick={() => navigate(`/round/${r.round_no}`)}>
                           Start round
@@ -129,21 +147,42 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/70 backdrop-blur">
+            <Card className="bg-card/70 backdrop-blur shadow-accent border-brand-accent/30">
               <CardHeader>
-                <CardTitle>Today’s schedule</CardTitle>
-                <CardDescription>Rounds appear here once seeded.</CardDescription>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Today’s schedule</CardTitle>
+                    <CardDescription>Rounds appear here once seeded.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="border-brand-sun/40 bg-brand-sun/10 text-secondary-foreground">
+                    Fixture
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 {rounds.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No rounds yet. Ask an organizer to set them up.</div>
                 ) : (
                   rounds.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between rounded-md border bg-background/40 px-3 py-2">
+                    <div
+                      key={r.id}
+                      className="group flex items-center justify-between rounded-md border bg-background/40 px-3 py-2 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-accent"
+                    >
                       <div className="text-sm">
                         <span className="font-medium">#{r.round_no}</span> {r.title}
                       </div>
-                      <div className="text-xs capitalize text-muted-foreground">{r.status}</div>
+                      <Badge
+                        variant={r.status === "unlocked" ? "default" : r.status === "closed" ? "secondary" : "outline"}
+                        className={
+                          r.status === "unlocked"
+                            ? "bg-brand-glow text-primary-foreground"
+                            : r.status === "closed"
+                              ? "bg-brand-sun/20 text-secondary-foreground"
+                              : "border-brand-accent/30 bg-brand-accent/10 text-secondary-foreground"
+                        }
+                      >
+                        {r.status}
+                      </Badge>
                     </div>
                   ))
                 )}
