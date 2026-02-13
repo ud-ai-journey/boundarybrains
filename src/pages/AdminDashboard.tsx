@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { CricketShell } from "@/components/CricketShell";
+import { RoundTop3Cards, type RoundTop3, type RoundTopRow } from "@/components/admin/RoundTop3Table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [rounds, setRounds] = useState<RoundRow[]>([]);
+  const [top3ByRound, setTop3ByRound] = useState<RoundTop3[]>([]);
   const [busyRoundId, setBusyRoundId] = useState<string | null>(null);
 
   const canRender = useMemo(() => !sessionLoading, [sessionLoading]);
@@ -67,7 +69,38 @@ export default function AdminDashboard() {
       toast({ title: "Failed to load rounds", description: error.message, variant: "destructive" });
       return;
     }
-    setRounds((data ?? []) as any);
+
+    const nextRounds = (data ?? []) as any as RoundRow[];
+    setRounds(nextRounds);
+
+    // Load top 3 per round (admin-only visibility is handled by backend rules).
+    const top3 = await loadRoundTop3(nextRounds);
+    setTop3ByRound(top3);
+  };
+
+  const loadRoundTop3 = async (roundRows: RoundRow[]): Promise<RoundTop3[]> => {
+    if (!roundRows.length) return [];
+
+    const results = await Promise.all(
+      roundRows.map(async (r) => {
+        const { data } = await supabase
+          .from("round_leaderboard_rows")
+          .select("user_id, employee_id, full_name, total_correct, total_answered, duration_ms, completed_at")
+          .eq("round_id", r.id)
+          .order("total_correct", { ascending: false })
+          .order("duration_ms", { ascending: true, nullsFirst: false })
+          .limit(3);
+
+        return {
+          round_id: r.id,
+          round_no: r.round_no,
+          round_title: r.title,
+          rows: (data ?? []) as unknown as RoundTopRow[],
+        } satisfies RoundTop3;
+      }),
+    );
+
+    return results;
   };
 
   useEffect(() => {
@@ -237,6 +270,16 @@ export default function AdminDashboard() {
 
               <div className="mt-4 text-xs text-muted-foreground">
                 Tip: “Close” ends the round for submissions; “Lock” hides it from employees.
+              </div>
+
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold tracking-tight">Round-wise Top 3</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Shows the top 3 employees for every round (correct desc, then fastest time).
+                </p>
+                <div className="mt-4">
+                  <RoundTop3Cards items={top3ByRound} />
+                </div>
               </div>
             </CardContent>
           </Card>
