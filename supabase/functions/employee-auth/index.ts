@@ -1,4 +1,4 @@
-/// <reference types="https://deno.land/x/types@0.1.0/index.d.ts" />
+/// <reference lib="deno.ns" />
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
